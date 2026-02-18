@@ -1,0 +1,19 @@
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build WDA without real signing (Ad-Hoc)
+        run: |
+          # 署名なしで一旦ビルドを通す
+          xcodebuild -project WebDriverAgent.xcodeproj \
+                     -scheme WebDriverAgentRunner \
+                     -destination 'generic/platform=iOS' \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CONFIGURATION_BUILD_DIR=./build
+          
+          # Payloadディレクトリを作ってIPA化
+          mkdir -p Payload
+          cp -r ./build/WebDriverAgentRunner-Runner.app ./Payload
+          zip -r WDA.ipa Payload
