@@ -1,19 +1,42 @@
+name: Build WDA IPA
+
+on:
+  workflow_dispatch: # 手動実行用ボタンを表示
+
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Build WDA without real signing (Ad-Hoc)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        # 実行速度向上のため最新の安定版を指定
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build WebDriverAgentRunner
         run: |
-          # 署名なしで一旦ビルドを通す
+          mkdir -p build
+          # 署名をスキップしてバイナリだけを作成
           xcodebuild -project WebDriverAgent.xcodeproj \
                      -scheme WebDriverAgentRunner \
                      -destination 'generic/platform=iOS' \
+                     -configuration Release \
                      CODE_SIGNING_ALLOWED=NO \
-                     CONFIGURATION_BUILD_DIR=./build
-          
-          # Payloadディレクトリを作ってIPA化
+                     CODE_SIGNING_REQUIRED=NO \
+                     clean build
+
+      - name: Create IPA Structure
+        run: |
           mkdir -p Payload
-          cp -r ./build/WebDriverAgentRunner-Runner.app ./Payload
-          zip -r WDA.ipa Payload
+          # ビルドされた .app を Payload フォルダにコピー
+          # パスは環境により異なる場合があるため find で探す
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "WebDriverAgentRunner-Runner.app" -type d | head -n 1)
+          cp -r "$APP_PATH" Payload/
+          zip -r WebDriverAgent.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WDA-unsigned-ipa
+          path: WebDriverAgent.ipa
